@@ -1,0 +1,15 @@
+pipeline {
+    agent any
+    stages {
+        stage("Test") {
+            when {
+                changeset "**/*.py"
+            }
+            steps {
+                echo "Hello World!"
+            }
+        }
+    }
+}
+//changeset watches files/directories changes with the given pattern. 
+//It sees the last git commit, and if any files/directories had changed which matches the given pattern, the stage is executed.
