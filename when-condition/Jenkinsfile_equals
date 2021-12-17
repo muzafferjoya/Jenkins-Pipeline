@@ -1,0 +1,16 @@
+pipeline {
+    agent any
+    stages {
+        stage("Test") {
+            when {
+                equals(actual: currentBuild.number, expected: 1)
+            }
+            steps {
+                echo "Hello World!"
+            }
+        }
+    }
+}
+
+//equals runs the stage if the actual value equals the expected one. 
+//For example, the following condition runs the stage if the current build number is one. So to speak, it runs only once.
