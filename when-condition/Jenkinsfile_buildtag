@@ -1,0 +1,17 @@
+pipeline {
+    agent any
+    stages {
+        stage("Deploy") {
+            when {
+                buildingTag()
+            }
+            steps {
+                echo "Hello World!"
+            }
+        }
+    }
+}
+
+//buildingTag runs the following stage if the current git commit has a tag.
+//This condition has been affected by an unfixed bug, if you see it didn’t work,
+//you should set TAG_NAME environment variable manually.
