@@ -1,0 +1,18 @@
+pipeline {
+    agent any
+    stages {
+        stage("Test") {
+            when {
+                branch "release-*"
+            }
+            steps {
+                echo "Hello World!"
+            }
+        }
+    }
+}
+
+//branch checks the source code branch name with the given pattern.
+//If the branch name is matched to the pattern, the stage is executed. 
+//You should note that this condition only works on Multibranch pipelines.
+//The Test stage in the below example executes when the branch name is started with “release-” All ANT-style patterns are accepted.
