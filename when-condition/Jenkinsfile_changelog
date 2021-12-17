@@ -1,0 +1,18 @@
+pipeline {
+    agent any
+    stages {
+        stage("Test") {
+            when {
+                changelog ".*Test.*"
+            }
+            steps {
+                echo "Hello World!"
+            }
+        }
+    }
+}
+
+//changelog gets a regular expression and matches it with the message of the last git commit. 
+//If the log message is matched to the given pattern, the following stage gets executed. 
+//You should note that this condition works only in Multibranch pipelines and those Pipelines that the script is from the SCM repo. 
+//In the below example, the stage is run when the git commit message contains “Test” string.
