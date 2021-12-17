@@ -1,0 +1,22 @@
+pipeline {
+    agent any
+    parameters {
+        booleanParam(name: "DEBUG", defaultValue: true)
+    }
+    stages {
+        stage("Test") {
+            when {
+                expression {
+                    return params.DEBUG
+                }
+            }
+            steps {
+                echo "Hello World!"
+            }
+        }
+    }
+}
+
+// expression gets a Groovy language expression and runs the following stage if that expression evaluates true. 
+// In the case of Strings, all values include “0” and “false” are returned true. 
+// If you intend to use strings as a part of the expression, you must set the value to null to evaluate it as false.

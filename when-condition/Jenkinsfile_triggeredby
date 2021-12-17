@@ -1,0 +1,17 @@
+pipeline {
+    agent any
+    stages {
+        stage("Notify") {
+            // when { triggeredBy "SCMTrigger" }
+            // when { triggeredBy "TimerTrigger" }
+            // when { triggeredBy "UpstreamCause" }
+            when { triggeredBy(cause: "UserIdCause", detail: "ssbostan") }
+            steps {
+                echo "Notify whom may concern."
+            }
+        }
+    }
+}
+
+// triggeredBy executes the stage when the current build has been triggered by the given param. 
+// This condition is useful for notification purposes.

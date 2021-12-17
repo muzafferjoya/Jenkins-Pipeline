@@ -1,0 +1,18 @@
+pipeline {
+    agent any
+    stages {
+        stage("Deploy") {
+            when {
+                tag "release-*"
+            }
+            steps {
+                echo "Deploy to production."
+            }
+        }
+    }
+}
+
+//tag runs the stage if the TAG_NAME variable is matched the given pattern. 
+//If the pattern is empty, it runs the stage if the TAG_NAME variable exists.
+//tag runs the stage if the TAG_NAME variable is matched the given pattern. 
+//If the pattern is empty, it runs the stage if the TAG_NAME variable exists.
