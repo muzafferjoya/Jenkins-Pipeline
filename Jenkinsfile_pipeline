@@ -1,0 +1,66 @@
+pipeline {
+
+  /*parameters {
+    string(defaultValue: 'Spaces-1', description: '', name: 'SpaceId', trim: true)
+    string(defaultValue: 'RandomQuotes-PHP', description: '', name: 'ProjectName', trim: true)
+    string(defaultValue: 'Dev', description: '', name: 'EnvironmentName', trim: true)
+    string(defaultValue: 'Octopus', description: '', name: 'ServerId', trim: true)
+  }*/
+  agent 'any'
+  stages {
+    stage('Environment') {
+      steps {
+          echo "PATH = ${env.PATH}"
+      }
+    }
+    stage('Checkout') {
+      steps {
+        git 'https://github.com/muzafferjoya/RandomQuotes-PHP.git'
+        script {
+            
+            def checkoutVars = checkout([$class: 'GitSCM', branches: [[name: '*/master']], userRemoteConfigs: [[url: 'https://github.com/muzafferjoya/RandomQuotes-PHP.git']]])
+            env.GIT_URL = checkoutVars.GIT_URL
+            env.GIT_COMMIT = checkoutVars.GIT_COMMIT
+            env.GIT_BRANCH = checkoutVars.GIT_BRANCH
+        }
+      }
+    }
+    stage('Dependencies') {
+      steps {
+        sh(script: 'composer install')
+        sh(script: 'composer show --all > dependencies.txt')
+        archiveArtifacts(artifacts: 'dependencies.txt', fingerprint: true)
+        sh(script: 'composer outdated > dependencieupdates.txt')
+        archiveArtifacts(artifacts: 'dependencieupdates.txt', fingerprint: true)
+      }
+    }
+    stage('Test') {
+      steps {
+        sh(script: 'vendor/bin/phpunit --log-junit results.xml tests || true', returnStdout: true)
+        junit(testResults: 'results.xml', allowEmptyResults : true)
+      }
+    }
+    stage('Package') {
+      steps {
+        
+        sh(script: 'which gitversion && gitversion /output buildserver || true')
+        
+        script {
+            if (fileExists('gitversion.properties')) {
+              def props = readProperties file: 'gitversion.properties'
+              env.VERSION_SEMVER = props.GitVersion_SemVer
+              env.VERSION_BRANCHNAME = props.GitVersion_BranchName
+              env.VERSION_ASSEMBLYSEMVER = props.GitVersion_AssemblySemVer
+              env.VERSION_MAJORMINORPATCH = props.GitVersion_MajorMinorPatch
+              env.VERSION_SHA = props.GitVersion_Sha
+            } else {
+              env.VERSION_SEMVER = "1.0.0." + env.BUILD_NUMBER
+            }
+         }
+         
+       }
+    }
+    
+
+  }
+}

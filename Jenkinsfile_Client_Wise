@@ -1,0 +1,59 @@
+pipeline{
+    agent any
+    parameters {
+  string defaultValue: 'website-eroam-client', description: 'Amazon S3 Bucket Name', name: 'BUCKET'
+  string defaultValue: 'tridentnineteen', description: 'Amazon S3 Bucket Application Directory', name: 'FOLDER'
+  string defaultValue: 'us-west-2', description: 'Amazon S3 Bucket Region', name: 'REGION'
+  string defaultValue: 'dist/', description: 'Amazon S3 Bucket Build Directory', name: 'BUILD'
+  string defaultValue: 'index.html', description: 'Application Index File', name: 'INDEX'
+  string defaultValue: 'dynamic.json', description: 'Client Json file', name: 'FILENAME'
+
+}
+    stages{
+        stage('Remove Old Json'){
+            steps{
+                sh 'rm -rf dynamic.json'
+            }
+        }
+        stage('Clone From S3 Bucket'){
+            steps{
+                sh 'aws s3 sync s3://website-eroam-client/cob-source/ .'
+                sh "aws s3 cp s3://website-eroam-client/cob-source/${params.FILENAME} ./dynamic.json"
+                sh 'npm install'
+                sh 'npm i vue-horizontal-list'
+                sh './node_modules/.bin/json-to-scss ./dynamic.json ./src/assets/scss/elements/'
+                sh 'npm install --save qs'
+                sh 'npm run build'
+            }
+        }
+        stage('Deploy') {  
+      steps {  
+        echo 'Running deploy phase'
+        withCredentials([aws(accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'muzaffar-aws-id', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) { 
+          sh 'aws s3 ls' 
+          sh "aws s3 sync ${params.BUILD} s3://${params.BUCKET}/${params.FOLDER} --delete" 
+        }  
+      }   
+    }
+    }
+    post { 
+    success {  
+      echo "Deployment to Amazon S3 suceeded for JOB - ${env.JOB_NAME} with BUILD NUMBER - ${env.BUILD_NUMBER}"
+      echo "The Jenkins BUILD URL of this project is: ${env.BUILD_URL}" 
+      echo "The Amazon S3 BUILD URL of this project is: https://${params.BUCKET}.s3.amazonaws.com/${params.FOLDER}/${params.INDEX}" 
+      
+      emailext attachLog: true,
+             body: '''${SCRIPT, template="groovy-html.template"}''', 
+             subject: "${env.JOB_NAME} - Build # ${env.BUILD_NUMBER} - Successful", 
+             mimeType: 'text/html',from: "muzaffar.khan@eroam.com", to: "krunal.parikh@eroam.com"
+    }  
+    failure {  
+      echo "Deployment to Amazon S3 failed for JOB - ${env.JOB_NAME} with BUILD NUMBER - ${env.BUILD_NUMBER}"
+      echo "The Jenkins BUILD URL of this project is: ${env.BUILD_URL}"
+     emailext attachLog: true,
+             body: '''${SCRIPT, template="groovy-html.template"}''', 
+             subject: "${env.JOB_NAME}  - Build # ${env.BUILD_NUMBER} - Failed", 
+             mimeType: 'text/html',from: "muzaffar.khan@eroam.com", to: "krunal.parikh@eroam.com"
+    }  
+  }
+}

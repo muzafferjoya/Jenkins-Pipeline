@@ -1,0 +1,33 @@
+def awsAccountId = ''
+def awsRegion = "ap-south-1"
+def jenkinsCredentialsId = "aws"
+
+def dockerImageName = 'jenkins-build'
+def tag = "0.1.0"
+
+pipeline{
+	agent any
+
+	environment{
+
+		AWS_DEFAULT_REGION = "${awsRegion}"
+		DOCKER_IMAGE = "${awsAccountId}.dkr.ecr.${awsRegion}.amazon.com/${dockerImageName}:${tag}"
+		ECR = "${awsAccountId}.dkr.ecr.${awsRegion}.amazon.com"
+
+	}
+
+	stages{
+		stage('Docker Build & Push to Registry') {
+			steps{
+				withCredentials([aws(credentialsId: jenkinsCredentialsId, accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]){
+					sh '''
+					docker build -t $DOCKER_IMAGE .
+					aws ecr get-login-password | docker login --username AWS --password-stdin $ECR
+					aws ecr create-repository --repository-name $DOCKER_IMAGE || 
+					docker push $DOCKER_IMAGE
+					'''
+				}
+			}
+		}
+	}
+}

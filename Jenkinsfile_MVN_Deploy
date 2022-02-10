@@ -1,0 +1,115 @@
+pipeline {
+  
+  parameters {
+    string(defaultValue: 'Spaces-1', description: '', name: 'SpaceId', trim: true)
+    string(defaultValue: 'Maven-app-CB', description: '', name: 'ProjectName', trim: true)
+    string(defaultValue: 'Dev', description: '', name: 'EnvironmentName', trim: true)
+    //string(defaultValue: 'Octopus', description: '', name: 'ServerId', trim: true)
+  }
+  tools {
+    jdk 'java'
+    maven 'mvn'
+  }
+  agent 'any'
+  stages {
+    stage('Environment') {
+      steps {
+          echo "PATH = ${env.PATH}"
+      }
+    }
+
+  stage('Checkout') {
+      steps {
+       
+        script {
+            
+            def checkoutVars = checkout([$class: 'GitSCM', branches: [[name: '*/master']], userRemoteConfigs: [[url: 'https://github.com/muzafferjoya/Maven_Project.git']]])
+            env.GIT_URL = checkoutVars.GIT_URL
+            env.GIT_COMMIT = checkoutVars.GIT_COMMIT
+            env.GIT_BRANCH = checkoutVars.GIT_BRANCH
+        }
+      }
+    }
+  stage('Dependencies') {
+      steps {
+        
+        sh(script: 'mvn --batch-mode dependency:resolve-plugins dependency:go-offline')
+        
+        sh(script: 'mvn --batch-mode dependency:tree > dependencies.txt')
+        archiveArtifacts(artifacts: 'dependencies.txt', fingerprint: true)
+        
+        sh(script: 'mvn --batch-mode versions:display-dependency-updates > dependencieupdates.txt')
+        archiveArtifacts(artifacts: 'dependencieupdates.txt', fingerprint: true)
+      }
+    }
+    stage('Test & Build') {
+    parallel {
+        stage('Build') {
+            steps {
+                sh '''
+          mvn --batch-mode build-helper:parse-version versions:set \
+          -DnewVersion=\\${parsedVersion.majorVersion}.\\${parsedVersion.minorVersion}.\\${parsedVersion.incrementalVersion}.${BUILD_NUMBER}
+        '''
+        sh(script: 'mvn --batch-mode -DskipTests clean compile', returnStdout: true)
+        script {
+            env.VERSION_SEMVER = sh (script: 'mvn -q -Dexec.executable=echo -Dexec.args=\'${project.version}\' --non-recursive exec:exec', returnStdout: true)
+            env.VERSION_SEMVER = env.VERSION_SEMVER.trim()
+            }
+        }
+        }
+        stage('Test') {
+            steps {
+                sh(script: 'mvn --batch-mode -Dmaven.test.failure.ignore=true test')
+        junit(testResults: 'target/surefire-reports/*.xml', allowEmptyResults : true)
+            }
+        }
+        
+        
+    }   
+}
+stage('Package') {
+      steps {
+        sh(script: 'mvn --batch-mode package -DskipTests')
+      }
+    }
+
+    stage('Repackage') {
+      steps {
+        
+        script {
+           
+            def extensions = ['jar', 'war']
+            def files = []
+            for(extension in extensions){
+                findFiles(glob: '**/target/**.' + extension).each{files << it}
+            }
+            echo 'Found ' + files.size() + ' potential artifacts'
+           
+            def largestFile = null
+            for (i = 0; i < files.size(); ++i) {
+              if (largestFile == null || files[i].length > largestFile.length) { 
+                largestFile = files[i]
+              }
+            }
+            if (largestFile != null) {
+              env.ORIGINAL_ARTIFACT = largestFile.path
+               
+              env.ARTIFACTS = "Maven-app-CB." + env.VERSION_SEMVER + largestFile.path.substring(largestFile.path.lastIndexOf("."), largestFile.path.length())
+              echo 'Found artifact at ' + largestFile.path
+              echo 'This path is available from the ARTIFACTS environment variable.'
+            }
+        }
+        
+        sh(script: 'cp ${ORIGINAL_ARTIFACT} ${ARTIFACTS}')
+      }
+    }
+    stage('Deployment'){
+    steps{
+        sshagent(['deploy_user']) {
+            sh "scp -o StrictHostKeyChecking=no *.war  ubuntu@34.205.28.255:/opt/tomcat/webapps"
+        }
+    }
+}
+    
+  }
+}

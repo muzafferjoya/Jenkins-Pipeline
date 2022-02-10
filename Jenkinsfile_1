@@ -1,0 +1,44 @@
+pipeline {
+    agent {
+        docker {
+            image 'damitj07/go-dep-docker-aws'
+        }
+    }
+    environment {
+        VERSION = "${env.BUILD_ID}-${env.GIT_COMMIT}"
+        NAME = "myapp"
+        IMAGE_REPO = "123456789123.dkr.ecr.ap-south-1.amazonaws.com"
+        GIT_URI = "git@bitbucket.org:sample/myapp.git"
+        BRANCH = "${env.BRANCH_NAME}"
+        IMAGE = "${IMAGE_REPO}/${NAME}:${VERSION}"
+    }
+    stages {
+        stage('Build') {
+            steps {
+                echo "Running ${VERSION} on ${env.JENKINS_URL}"
+                git branch: "${BRANCH}", credentialsId: 'jenkins-bitbucket-key', url: "${GIT_URI}"
+                echo "for brnach ${env.BRANCH_NAME}"
+                sh "docker build -t ${NAME} ."
+                sh "docker tag ${NAME}:latest ${IMAGE_REPO}/${NAME}:${VERSION}"
+            }
+        }
+        stage('Test') {
+            steps {
+                echo 'Skipping Testing..'
+            }
+        }
+        stage('Artifact') {
+            steps {
+                echo 'Deploying.. To Dev'
+                sh 'aws ecr get-login --no-include-email --region ap-south-1 >> login.sh'
+                sh 'sh login.sh'
+                sh "docker push ${IMAGE_REPO}/${NAME}:${VERSION}"
+            }
+        }
+        stage('Deploy') {
+            steps {
+                sh "deploy-my-app.sh"
+            }
+        }
+    }
+}

@@ -1,0 +1,39 @@
+pipeline{
+    agent any
+    tools{
+        maven 'mvn'
+    }
+    environment{
+        SPARK_HOME = "/opt/spark"
+    }
+    stages{
+        stage('Checkout External Code'){
+            steps{
+                git branch: 'master',
+                url: 'https://github.com/muzafferjoya/spark-hello-world.git'
+            }
+        }
+        stage ('Initialize') {
+            steps {
+                sh '''
+                    echo "PATH = ${PATH}"
+                    echo "M2_HOME = ${M2_HOME}"
+                ''' 
+            }
+        }
+        stage('Build') {
+            steps {
+                 
+                sh 'mvn clean package'
+                
+            }
+        }
+        stage('Deploy') {
+            steps {
+                
+                sh '${SPARK_HOME}/bin/spark-submit --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.1.0 --class com.kitmenke.spark.MyStreamingApp /var/lib/jenkins/workspace/spark/target/spark-hello-world-1.0-SNAPSHOT.jar'
+                
+            }
+        }
+    }
+}

@@ -1,0 +1,9 @@
+stage('Build') {
+            steps {
+                dir("/var/lib/jenkins/workspace/maven-pipeline/SparkExample-Maven") {
+                sh 'mvn clean install package'
+                }
+            }
+        }
+
+        

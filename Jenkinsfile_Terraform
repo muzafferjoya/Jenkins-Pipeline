@@ -1,0 +1,43 @@
+pipeline{
+	agent any
+		parameters {
+	  string defaultValue: 'terraform init -input=false', description: 'Initialization for the Terraform code', name: 'TerraformInitialization'
+	  string defaultValue: 'terraform plan -out=tfplan -input=false', description: 'Planning for the Terraform code', name: 'TerraformPlanning'
+	  string defaultValue: 'terraform apply -input=false tfplan', description: 'Applying for the Terraform code', name: 'TerraformApply'
+	  string defaultValue: 'terraform destroy -input=false', description: 'Destroying Environment', name: 'TerraformDestroy' 
+
+	}
+
+	stages{
+		stage('Terraform Initialization'){
+			steps{
+				dir("/var/lib/jenkins/terraform-code"){
+				   sh "${params.TerraformInitialization}"
+				}
+			}
+		}
+		stage('Terraform Planning'){
+			steps{
+				dir("/var/lib/jenkins/terraform-code"){
+					sh "${params.TerraformPlanning}"
+				}
+			}
+		}
+		stage('Terraform Applying'){
+			steps{
+				dir("/var/lib/jenkins/terraform-code"){
+					sh "${params.TerraformApply}"
+				}
+			}
+		}
+		stage('Terraform Destroying'){
+			steps{
+				dir("/var/lib/jenkins/workspace"){
+					sh "${params.TerraformDestroy}"
+				}
+			}
+		}
+	}
+
+
+	}
